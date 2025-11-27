@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Adventskalender-Quiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* ========= GRUNDEINSTELLUNGEN ========= */
+    :root {
+      /* HIER dein Hintergrundbild einsetzen */
+      --bg-image: url("https://images.pexels.com/photos/1303098/pexels-photo-1303098.jpeg");
+      --door-color: rgba(200, 0, 40, 0.85);
+      --door-open-color: rgba(255, 255, 255, 0.95);
+      --accent: #ffd54f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #fff;
+      background-image: var(--bg-image);
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .overlay {
+      background: rgba(0, 0, 0, 0.55);
+      border-radius: 16px;
+      padding: 1.25rem;
+      max-width: 1100px;
+      width: 100%;
+      backdrop-filter: blur(4px);
+    }
+
+    h1 {
+      margin: 0 0 0.25rem;
+      font-size: clamp(1.8rem, 4vw, 2.4rem);
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0 0 1rem;
+      text-align: center;
+      font-size: 0.95rem;
+      color: #ffecb3;
+    }
+
+    /* ========= NAME-EINGABE ========= */
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .bar label {
+      font-size: 0.9rem;
+    }
+
+    .bar input {
+      padding: 0.4rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      min-width: 160px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #fff;
+    }
+
+    .bar button {
+      border-radius: 999px;
+      border: none;
+      padding: 0.45rem 0.9rem;
+      background: var(--accent);
+      color: #3e2723;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.15s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    .bar button:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+    }
+
+    .info {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #ffe082;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ========= KALENDER-GRID ========= */
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 0.6rem;
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 800px) {
+      .calendar {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 540px) {
+      .calendar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    .door {
+      position: relative;
+      padding-top: 100%; /* Quadrat */
+      perspective: 1000px;
+    }
+
+    .door-inner {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      transition: transform 0.7s ease;
+      cursor: pointer;
+    }
+
+    .door-front,
+    .door-back {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .door-front {
+      background: var(--door-color);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .door-front span {
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+    }
+
+    .door-inner.open {
+      transform: rotateY(-180deg);
+    }
+
+    .door-back {
+      background: var(--door-open-color);
+      color: #3e2723;
+      transform: rotateY(180deg);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+      font-size: 0.75rem;
+      padding: 0.3rem;
+      text-align: center;
+    }
+
+    .door-back small {
+      opacity: 0.8;
+    }
+
+    .door.locked .door-inner {
+      cursor: not-allowed;
+    }
+
+    .door.locked .door-front {
+      background: rgba(60, 60, 60, 0.85);
+      color: rgba(255, 255, 255, 0.5);
+      box-shadow: none;
+      border-style: dashed;
+    }
+
+    .door.available .door-front {
+      outline: 2px solid rgba(255, 235, 59, 0.8);
+      outline-offset: -2px;
+    }
+
+    /* ========= MODAL ========= */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .modal-backdrop.visible {
+      display: flex;
+    }
+
+    .modal {
+      background: #fafafa;
+      color: #212121;
+      max-width: 700px;
+      width: 100%;
+      margin: 1rem;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      animation: popIn 0.35s ease-out;
+    }
+
+    @keyframes popIn {
+      from {
+        transform: translateY(20px) scale(0.95);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .modal-header {
+      padding: 0.8rem 1rem 0.4rem;
+      background: linear-gradient(120deg, #c62828, #ad1457);
+      color: #fff;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    .modal-body {
+      padding: 0.8rem 1rem 1rem;
+    }
+
+    .question-text {
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+    }
+
+    .question-image-wrapper {
+      text-align: center;
+      margin-bottom: 0.7rem;
+    }
+
+    .question-image {
+      max-width: 100%;
+      max-height: 320px;
+      border-radius: 10px;
+      object-fit: cover;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .answer-label {
+      font-size: 0.9rem;
+      margin-bottom: 0.2rem;
+      color: #555;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 70px;
+      padding: 0.4rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-family: inherit;
+      resize: vertical;
+    }
+
+    .modal-footer {
+      padding: 0.6rem 1rem 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      border-top: 1px solid #eee;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: none;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .btn-primary {
+      background: #2e7d32;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .btn:hover {
+      filter: brightness(1.05);
+    }
+
+    .status {
+      font-size: 0.8rem;
+      color: #388e3c;
+    }
+
+    .status.error {
+      color: #c62828;
+    }
+
+  </style>
+</head>
+<body>
+<div class="overlay">
+  <h1>Adventskalender-Quiz</h1>
+  <p class="subtitle">Öffne jeden Tag ein Türchen, beantworte die Frage und lass dich überraschen 🎄</p>
+
+  <div class="bar">
+    <label for="nameInput">Dein Name:</label>
+    <input id="nameInput" type="text" placeholder="z.B. Anna" />
+    <button id="saveNameBtn">Speichern</button>
+  </div>
+  <p class="info" id="infoText">Bitte gib deinen Namen ein, um loszulegen.</p>
+
+  <div id="calendar" class="calendar"></div>
+</div>
+
+<!-- MODAL -->
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Türchen</h2>
+    </div>
+    <div class="modal-body">
+      <p id="questionText" class="question-text"></p>
+      <div class="question-image-wrapper">
+        <img id="questionImage" class="question-image" src="" alt="Advent Bild" />
+      </div>
+      <div>
+        <div class="answer-label">Deine Antwort:</div>
+        <textarea id="answerInput" placeholder="Hier kannst du deine Antwort eintragen..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div id="status" class="status"></div>
+      <div>
+        <button class="btn btn-secondary" id="closeModalBtn">Schließen</button>
+        <button class="btn btn-primary" id="saveAnswerBtn">Antwort speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ===========================
+     KONFIGURATION
+     =========================== */
+
+  // DEV: Zum Testen kannst du hier einen Tag erzwingen (1–24), z.B. 5.
+  // Lass es auf null, damit automatisch der echte Tag im Dezember benutzt wird.
+  const FORCE_DAY = null;
+
+  // Fragen und Bilder für jede Tür
+  // -> HIER DEINE FRAGEN & BILD-URLs EINTRAGEN
+  const QUESTIONS = {
+    1: "Welche Tradition darf bei dir an Weihnachten auf keinen Fall fehlen?",
+    2: "Was ist dein Lieblings-Weihnachtslied – und warum?",
+    3: "Welche Plätzchen magst du am liebsten?",
+    4: "Erzähl von einem lustigen Weihnachtsmoment aus deiner Kindheit.",
+    5: "Was bedeutet dir die Adventszeit persönlich?",
+    6: "Ohne welches Getränk ist Advent für dich nicht komplett?",
+    7: "Wie schmückst du deine Wohnung/dein Zuhause im Advent?",
+    8: "Welchen Film schaust du in der Weihnachtszeit immer wieder?",
+    9: "Gibt es einen Weihnachtsduft, den du besonders liebst?",
+    10: "Was war das ungewöhnlichste Geschenk, das du je bekommen hast?",
+    11: "Mit wem verbringst du am liebsten Heiligabend?",
+    12: "Gibt es ein Weihnachtsritual, das du aus deiner Kindheit übernommen hast?",
+    13: "Was gehört für dich unbedingt auf den Weihnachtstisch?",
+    14: "Hast du einen Weihnachtswunsch für dieses Jahr?",
+    15: "Welche Erinnerung zaubert dir jedes Jahr an Weihnachten ein Lächeln ins Gesicht?",
+    16: "Welche Weihnachtsfarbe magst du am liebsten (z.B. rot, gold, silber…)?",
+    17: "Was machst du an den Feiertagen am liebsten: feiern, entspannen oder verreisen?",
+    18: "Wie sieht dein perfekter Wintertag aus?",
+    19: "Welches Weihnachtslied kannst du fast auswendig?",
+    20: "Gibt es ein Geschenk, das du nie vergessen wirst?",
+    21: "Wie früh beginnst du mit den Vorbereitungen für Weihnachten?",
+    22: "Was war dein schönster Adventsmoment in diesem Jahr?",
+    23: "Wenn du dem Christkind/Weihnachtsmann etwas wünschen könntest – was wäre es?",
+    24: "Was ist für dich das Wichtigste an Weihnachten?"
+  };
+
+  const IMAGES = {
+    1: "https://images.pexels.com/photos/1303098/pexels-photo-1303098.jpeg",
+    2: "https://images.pexels.com/photos/754262/pexels-photo-754262.jpeg",
+    3: "https://images.pexels.com/photos/688010/pexels-photo-688010.jpeg",
+    4: "https://images.pexels.com/photos/257909/pexels-photo-257909.jpeg",
+    5: "https://images.pexels.com/photos/3016960/pexels-photo-3016960.jpeg",
+    6: "https://images.pexels.com/photos/3165335/pexels-photo-3165335.jpeg",
+    7: "https://images.pexels.com/photos/712318/pexels-photo-712318.jpeg",
+    8: "https://images.pexels.com/photos/2253090/pexels-photo-2253090.jpeg",
+    9: "https://images.pexels.com/photos/1303097/pexels-photo-1303097.jpeg",
+    10: "https://images.pexels.com/photos/2253600/pexels-photo-2253600.jpeg",
+    11: "https://images.pexels.com/photos/1729797/pexels-photo-1729797.jpeg",
+    12: "https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg",
+    13: "https://images.pexels.com/photos/688019/pexels-photo-688019.jpeg",
+    14: "https://images.pexels.com/photos/1303085/pexels-photo-1303085.jpeg",
+    15: "https://images.pexels.com/photos/1661635/pexels-photo-1661635.jpeg",
+    16: "https://images.pexels.com/photos/2449665/pexels-photo-2449665.jpeg",
+    17: "https://images.pexels.com/photos/749353/pexels-photo-749353.jpeg",
+    18: "https://images.pexels.com/photos/2253091/pexels-photo-2253091.jpeg",
+    19: "https://images.pexels.com/photos/1303086/pexels-photo-1303086.jpeg",
+    20: "https://images.pexels.com/photos/1556679/pexels-photo-1556679.jpeg",
+    21: "https://images.pexels.com/photos/1303096/pexels-photo-1303096.jpeg",
+    22: "https://images.pexels.com/photos/1708601/pexels-photo-1708601.jpeg",
+    23: "https://images.pexels.com/photos/1303099/pexels-photo-1303099.jpeg",
+    24: "https://images.pexels.com/photos/1303087/pexels-photo-1303087.jpeg"
+  };
+
+  // OPTIONAL: URL deines späteren Backends
+  // const ANSWER_API_URL = "https://dein-backend.de/api/answer";
+
+  /* ===========================
+     HILFSFUNKTIONEN
+     =========================== */
+
+  const nameInput = document.getElementById("nameInput");
+  const saveNameBtn = document.getElementById("saveNameBtn");
+  const infoText = document.getElementById("infoText");
+  const calendar = document.getElementById("calendar");
+
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const modalTitle = document.getElementById("modalTitle");
+  const questionText = document.getElementById("questionText");
+  const questionImage = document.getElementById("questionImage");
+  const answerInput = document.getElementById("answerInput");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const saveAnswerBtn = document.getElementById("saveAnswerBtn");
+  const statusEl = document.getElementById("status");
+
+  let currentDay = null;
+
+  function getTodayDay() {
+    if (FORCE_DAY !== null) return FORCE_DAY;
+
+    const now = new Date();
+    const month = now.getMonth(); // 0 = Jan, 11 = Dez
+
+    if (month === 11) {
+      // Dezember
+      return Math.min(now.getDate(), 24);
+    }
+    // Außerhalb Dezember: standardmäßig alles gesperrt (0),
+    // oder zum Testen: 24 setzen.
+    return 0;
+  }
+
+  function loadName() {
+    const stored = localStorage.getItem("ak_name");
+    if (stored) {
+      nameInput.value = stored;
+      infoText.textContent = "Willkommen zurück, " + stored + "!";
+    }
+  }
+
+  function saveName() {
+    const name = nameInput.value.trim();
+    if (!name) {
+      infoText.textContent = "Bitte gib einen Namen ein.";
+      return;
+    }
+    localStorage.setItem("ak_name", name);
+    infoText.textContent = "Hallo " + name + "! Du kannst jetzt Türchen öffnen.";
+  }
+
+  function loadAnswers() {
+    try {
+      const raw = localStorage.getItem("ak_answers");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveAnswerLocally(day, answer) {
+    const answers = loadAnswers();
+    answers[day] = answer;
+    localStorage.setItem("ak_answers", JSON.stringify(answers));
+  }
+
+  function getLocalAnswer(day) {
+    const answers = loadAnswers();
+    return answers[day] || "";
+  }
+
+  function createCalendar() {
+    calendar.innerHTML = "";
+    const today = getTodayDay();
+
+    for (let day = 1; day <= 24; day++) {
+      const door = document.createElement("div");
+      door.className = "door";
+
+      const inner = document.createElement("div");
+      inner.className = "door-inner";
+
+      const front = document.createElement("div");
+      front.className = "door-front";
+      const span = document.createElement("span");
+      span.textContent = day;
+      front.appendChild(span);
+
+      const back = document.createElement("div");
+      back.className = "door-back";
+      back.innerHTML = "<small>Türchen&nbsp;" + day + "</small>";
+
+      inner.appendChild(front);
+      inner.appendChild(back);
+      door.appendChild(inner);
+
+      if (day <= today || today === 0) {
+        door.classList.add("available");
+        inner.addEventListener("click", () => handleDoorClick(day, inner));
+      } else {
+        door.classList.add("locked");
+      }
+
+      calendar.appendChild(door);
+    }
+  }
+
+  function handleDoorClick(day, innerEl) {
+    const name = nameInput.value.trim();
+    if (!name) {
+      infoText.textContent = "Bitte gib zuerst deinen Namen ein.";
+      nameInput.focus();
+      return;
+    }
+
+    // Flip-Animation starten
+    innerEl.classList.add("open");
+
+    // Modal nach kurzer Zeit anzeigen (damit Flip sichtbar ist)
+    setTimeout(() => {
+      openModal(day);
+    }, 300);
+  }
+
+  function openModal(day) {
+    currentDay = day;
+
+    modalTitle.textContent = "Türchen " + day;
+    questionText.textContent = QUESTIONS[day] || "Keine Frage hinterlegt.";
+    questionImage.src = IMAGES[day] || "";
+    questionImage.style.display = IMAGES[day] ? "block" : "none";
+
+    const existingAnswer = getLocalAnswer(day);
+    answerInput.value = existingAnswer;
+
+    statusEl.textContent = existingAnswer
+      ? "Bisher gespeicherte Antwort geladen."
+      : "";
+    statusEl.classList.remove("error");
+
+    modalBackdrop.classList.add("visible");
+  }
+
+  function closeModal() {
+    modalBackdrop.classList.remove("visible");
+    currentDay = null;
+    statusEl.textContent = "";
+  }
+
+  function saveAnswer() {
+    if (currentDay === null) return;
+    const answer = answerInput.value.trim();
+    if (!answer) {
+      statusEl.textContent = "Bitte gib eine Antwort ein.";
+      statusEl.classList.add("error");
+      return;
+    }
+
+    const name = nameInput.value.trim();
+    saveAnswerLocally(currentDay, answer);
+    statusEl.textContent = "Antwort lokal gespeichert.";
+    statusEl.classList.remove("error");
+
+    // HIER könntest du später deine Antwort online speichern:
+    /*
+    fetch(ANSWER_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        day: currentDay,
+        answer
+      })
+    }).then(res => {
+      if (!res.ok) throw new Error();
+      statusEl.textContent = "Antwort gespeichert (Server). Danke!";
+    }).catch(() => {
+      statusEl.textContent = "Antwort nur lokal gespeichert (Serverfehler).";
+      statusEl.classList.add("error");
+    });
+    */
+  }
+
+  /* ===========================
+     EVENT LISTENERS & INIT
+     =========================== */
+
+  saveNameBtn.addEventListener("click", saveName);
+  nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveName();
+    }
+  });
+
+  closeModalBtn.addEventListener("click", closeModal);
+  modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === modalBackdrop) {
+      closeModal();
+    }
+  });
+
+  saveAnswerBtn.addEventListener("click", saveAnswer);
+
+  // Init
+  loadName();
+  createCalendar();
+</script>
+</body>
+</html>
