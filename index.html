@@ -529,13 +529,13 @@
 
       const back = document.createElement("div");
       back.className = "door-back";
-      back.innerHTML = "<small>Türchen&nbsp;" + day + "</small>";
+      back.innerHTML = "<small>" + day + "\.&nbsp;Dezember</small>";
 
       inner.appendChild(front);
       inner.appendChild(back);
       door.appendChild(inner);
 
-      if (day <= today || today === 0) {
+      if (day <= today || today === 24) {
         door.classList.add("available");
         inner.addEventListener("click", () => handleDoorClick(day, inner));
       } else {
