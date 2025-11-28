@@ -9,8 +9,8 @@
     :root {
       /* HIER dein Hintergrundbild einsetzen */
       --bg-image: url("Dino-Christmas.png");
-      --door-color: rgba(200, 0, 40, 0.85);
-      --door-open-color: rgba(255, 255, 255, 0.95);
+      --door-color: rgba(200, 0, 40, 0.4);
+      --door-open-color: rgba(255, 255, 255, 0.8);
       --accent: #ffd54f;
     }
 
@@ -34,7 +34,7 @@
     }
 
     .overlay {
-      background: rgba(0, 0, 0, 0.55);
+      background: rgba(0, 0, 0, 0.15);
       border-radius: 16px;
       padding: 1.25rem;
       max-width: 1100px;
@@ -171,7 +171,7 @@
       transform: rotateY(180deg);
       border: 1px solid rgba(255, 255, 255, 0.7);
       box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-      font-size: 0.75rem;
+      font-size: 1.2rem;
       padding: 0.3rem;
       text-align: center;
     }
@@ -185,7 +185,7 @@
     }
 
     .door.locked .door-front {
-      background: rgba(60, 60, 60, 0.85);
+      background: rgba(60, 60, 60, 0.5);
       color: rgba(255, 255, 255, 0.5);
       box-shadow: none;
       border-style: dashed;
@@ -230,7 +230,7 @@
       }
       to {
         transform: translateY(0) scale(1);
-        opacity: 1;
+        opacity: 0.8;
       }
     }
 
@@ -325,6 +325,32 @@
     .status.error {
       color: #c62828;
     }
+  
+  #mcOptions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.2rem;
+  }
+  
+  .mc-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.4rem;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  
+  .mc-option input[type="radio"] {
+    cursor: pointer;
+  }
+  
+  .mc-option:hover {
+    background: #f5f5f5;
+  }
 
   </style>
 </head>
@@ -354,9 +380,17 @@
       <div class="question-image-wrapper">
         <img id="questionImage" class="question-image" src="" alt="Advent Bild" />
       </div>
-      <div>
+    
+      <!-- Wrapper für Text-Antwort -->
+      <div id="answerWrapper">
         <div class="answer-label">Deine Antwort:</div>
         <textarea id="answerInput" placeholder="Hier kannst du deine Antwort eintragen..."></textarea>
+      </div>
+    
+      <!-- Wrapper für Multiple-Choice -->
+      <div id="mcWrapper" style="display:none;">
+        <div class="answer-label">Wähle eine Option:</div>
+        <div id="mcOptions"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -377,14 +411,25 @@
   // DEV: Zum Testen kannst du hier einen Tag erzwingen (1–24), z.B. 5.
   // Lass es auf null, damit automatisch der echte Tag im Dezember benutzt wird.
   const FORCE_DAY = null;
+  const answerWrapper = document.getElementById("answerWrapper");
+  const mcWrapper = document.getElementById("mcWrapper");
+  const mcOptionsContainer = document.getElementById("mcOptions");
 
   // Fragen und Bilder für jede Tür
   // -> HIER DEINE FRAGEN & BILD-URLs EINTRAGEN
   const QUESTIONS = {
     1: "Warum mag Tobi Dinos?",
     2: "Was ist Tobis Lieblingsunterhose?",
-    3: "Welche Plätzchen magst du am liebsten?",
-    4: "Erzähl von einem lustigen Weihnachtsmoment aus deiner Kindheit.",
+    3: {
+      text: "Welches Getränk passt am besten zum Advent?",
+      options: [
+        "A: Glühwein",
+        "B: Kinderpunsch",
+        "C: Kakao",
+        "D: Tee"
+      ]
+    },
+    4: "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.",
     5: "Was bedeutet dir die Adventszeit persönlich?",
     6: "Ohne welches Getränk ist Advent für dich nicht komplett?",
     7: "Wie schmückst du deine Wohnung/dein Zuhause im Advent?",
@@ -434,8 +479,8 @@
     24: "https://images.pexels.com/photos/1303087/pexels-photo-1303087.jpeg"
   };
 
-  // OPTIONAL: URL deines späteren Backends
-  // const ANSWER_API_URL = "https://dein-backend.de/api/answer";
+  // OPTIONAL: URL Backend
+  const ANSWER_API_URL = "https://script.google.com/macros/s/AKfycbzJVN17epKmLuVpG5sfdsrZIk3qFgnLSiiga6JmkrWmdvuu7HcJMd5X8XfC6AA-1A/exec";
 
   /* ===========================
      HILFSFUNKTIONEN
@@ -469,7 +514,7 @@
     }
     // Außerhalb Dezember: standardmäßig alles gesperrt (0),
     // oder zum Testen: 24 setzen.
-    return 0;
+    return 4;
   }
 
   function loadName() {
@@ -565,21 +610,75 @@
 
   function openModal(day) {
     currentDay = day;
-
+  
+    const q = QUESTIONS[day];
+    let questionTextValue = "";
+    let isMultipleChoice = false;
+    let options = [];
+  
+    if (typeof q === "string") {
+      questionTextValue = q;
+    } else if (q && typeof q === "object") {
+      questionTextValue = q.text || "";
+      options = Array.isArray(q.options) ? q.options : [];
+      isMultipleChoice = options.length > 0;
+    } else {
+      questionTextValue = "Keine Frage hinterlegt.";
+    }
+  
     modalTitle.textContent = "Türchen " + day;
-    questionText.textContent = QUESTIONS[day] || "Keine Frage hinterlegt.";
+    questionText.textContent = questionTextValue;
     questionImage.src = IMAGES[day] || "";
     questionImage.style.display = IMAGES[day] ? "block" : "none";
-
+  
     const existingAnswer = getLocalAnswer(day);
-    answerInput.value = existingAnswer;
-
-    statusEl.textContent = existingAnswer
-      ? "Bisher gespeicherte Antwort geladen."
-      : "";
+    statusEl.textContent = existingAnswer ? "Bisher gespeicherte Antwort geladen." : "";
     statusEl.classList.remove("error");
-
+  
+    if (isMultipleChoice) {
+      // Multiple Choice anzeigen, Textfeld verstecken
+      answerWrapper.style.display = "none";
+      mcWrapper.style.display = "block";
+      renderMcOptions(options, existingAnswer);
+    } else {
+      // Textfrage anzeigen, MC verstecken
+      answerWrapper.style.display = "block";
+      mcWrapper.style.display = "none";
+      answerInput.value = existingAnswer;
+    }
+  
     modalBackdrop.classList.add("visible");
+  }
+  
+  function renderMcOptions(options, existingAnswer) {
+    mcOptionsContainer.innerHTML = "";
+  
+    options.forEach((optText, index) => {
+      const id = `mc_${currentDay}_${index}`;
+      const wrapper = document.createElement("label");
+      wrapper.className = "mc-option";
+  
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "mcOption";
+      radio.id = id;
+  
+      // Wir speichern als Wert z.B. "B: Kinderpunsch"
+      const letter = String.fromCharCode(65 + index); // 65 = 'A'
+      const value = optText.includes(":") ? optText : `${letter}: ${optText}`;
+      radio.value = value;
+  
+      if (existingAnswer && existingAnswer === value) {
+        radio.checked = true;
+      }
+  
+      const span = document.createElement("span");
+      span.textContent = optText;
+  
+      wrapper.appendChild(radio);
+      wrapper.appendChild(span);
+      mcOptionsContainer.appendChild(wrapper);
+    });
   }
 
   function closeModal() {
@@ -588,38 +687,63 @@
     statusEl.textContent = "";
   }
 
-  function saveAnswer() {
+function saveAnswer() {
     if (currentDay === null) return;
-    const answer = answerInput.value.trim();
-    if (!answer) {
-      statusEl.textContent = "Bitte gib eine Antwort ein.";
+  
+    const name = nameInput.value.trim();
+    if (!name) {
+      statusEl.textContent = "Bitte gib zuerst deinen Namen ein.";
       statusEl.classList.add("error");
       return;
     }
-
-    const name = nameInput.value.trim();
+  
+    const q = QUESTIONS[currentDay];
+    const isMultipleChoice = q && typeof q === "object" && Array.isArray(q.options) && q.options.length > 0;
+  
+    let answer = "";
+  
+    if (isMultipleChoice) {
+      const selected = mcOptionsContainer.querySelector('input[name="mcOption"]:checked');
+      if (!selected) {
+        statusEl.textContent = "Bitte wähle eine Option aus.";
+        statusEl.classList.add("error");
+        return;
+      }
+      answer = selected.value; // z.B. "B: Kinderpunsch"
+    } else {
+      answer = answerInput.value.trim();
+      if (!answer) {
+        statusEl.textContent = "Bitte gib eine Antwort ein.";
+        statusEl.classList.add("error");
+        return;
+      }
+    }
+  
+    // lokal speichern
     saveAnswerLocally(currentDay, answer);
     statusEl.textContent = "Antwort lokal gespeichert.";
     statusEl.classList.remove("error");
-
-    // HIER könntest du später deine Antwort online speichern:
-    /*
-    fetch(ANSWER_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        day: currentDay,
-        answer
+  
+    // Wenn du Google Sheets angebunden hast:
+    if (typeof ANSWER_API_URL === "string" && ANSWER_API_URL) {
+      fetch(ANSWER_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          day: currentDay,
+          answer
+        })
       })
-    }).then(res => {
-      if (!res.ok) throw new Error();
-      statusEl.textContent = "Antwort gespeichert (Server). Danke!";
-    }).catch(() => {
-      statusEl.textContent = "Antwort nur lokal gespeichert (Serverfehler).";
-      statusEl.classList.add("error");
-    });
-    */
+        .then(res => {
+          if (!res.ok) throw new Error();
+          statusEl.textContent = "Antwort gespeichert (Google Sheet). Danke!";
+        })
+        .catch(() => {
+          statusEl.textContent = "Antwort nur lokal gespeichert (Fehler bei Google).";
+          statusEl.classList.add("error");
+        });
+    }
   }
 
   /* ===========================
