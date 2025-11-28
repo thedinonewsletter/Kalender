@@ -728,18 +728,26 @@ function saveAnswer() {
     if (typeof ANSWER_API_URL === "string" && ANSWER_API_URL) {
       fetch(ANSWER_API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           name,
           day: currentDay,
           answer
         })
       })
-        .then(res => {
-          if (!res.ok) throw new Error();
+        .then(async res => {
+          const text = await res.text();
+          console.log("Google response status:", res.status);
+          console.log("Google response body:", text);
+      
+          if (!res.ok) {
+            throw new Error("Status " + res.status + " – " + text);
+          }
+      
           statusEl.textContent = "Antwort gespeichert (Google Sheet). Danke!";
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error("Google error:", err);
           statusEl.textContent = "Antwort nur lokal gespeichert (Fehler bei Google).";
           statusEl.classList.add("error");
         });
