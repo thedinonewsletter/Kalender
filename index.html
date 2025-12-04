@@ -460,7 +460,16 @@
     16: "Welche Weihnachtsfarbe magst du am liebsten (z.B. rot, gold, silber…)?",
     17: "Was machst du an den Feiertagen am liebsten: feiern, entspannen oder verreisen?",
     18: "Wie sieht dein perfekter Wintertag aus?",
-    19: "Welches Weihnachtslied kannst du fast auswendig?",
+    19: {
+      text: "Wo hat Tobi gesundheitliche Probleme",
+      multi: true,
+      options: [
+        "A: Ohr",
+        "B: Fuß",
+        "C: Schritt",
+        "D: Nase"
+      ]
+    },
     20: "Gibt es ein Geschenk, das du nie vergessen wirst?",
     21: "Wie früh beginnst du mit den Vorbereitungen für Weihnachten?",
     22: "Was war dein schönster Adventsmoment in diesem Jahr?",
@@ -630,6 +639,7 @@
     const q = QUESTIONS[day];
     let questionTextValue = "";
     let isMultipleChoice = false;
+    let isMultiSelect = false;
     let options = [];
   
     if (typeof q === "string") {
@@ -638,6 +648,7 @@
       questionTextValue = q.text || "";
       options = Array.isArray(q.options) ? q.options : [];
       isMultipleChoice = options.length > 0;
+      isMultiSelect = !!q.multi; // <- Mehrfachauswahl-Flag
     } else {
       questionTextValue = "Keine Frage hinterlegt.";
     }
@@ -655,7 +666,7 @@
       // Multiple Choice anzeigen, Textfeld verstecken
       answerWrapper.style.display = "none";
       mcWrapper.style.display = "block";
-      renderMcOptions(options, existingAnswer);
+      renderMcOptions(options, existingAnswer, isMultiSelect);
     } else {
       // Textfrage anzeigen, MC verstecken
       answerWrapper.style.display = "block";
@@ -666,32 +677,39 @@
     modalBackdrop.classList.add("visible");
   }
   
-  function renderMcOptions(options, existingAnswer) {
+  function renderMcOptions(options, existingAnswer, isMultiSelect) {
     mcOptionsContainer.innerHTML = "";
+  
+    // vorhandene Antwort z.B. "A: Plätzchen, C: Adventskranz"
+    // -> in einzelne Werte splitten, um sie wieder vorzufüllen
+    const existingValues = (existingAnswer || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
   
     options.forEach((optText, index) => {
       const id = `mc_${currentDay}_${index}`;
       const wrapper = document.createElement("label");
       wrapper.className = "mc-option";
   
-      const radio = document.createElement("input");
-      radio.type = "radio";
-      radio.name = "mcOption";
-      radio.id = id;
+      const input = document.createElement("input");
+      input.type = isMultiSelect ? "checkbox" : "radio";
+      input.name = "mcOption";
+      input.id = id;
   
-      // Wir speichern als Wert z.B. "B: Kinderpunsch"
+      // Wert, der gespeichert wird (z.B. "A: Kinderpunsch")
       const letter = String.fromCharCode(65 + index); // 65 = 'A'
       const value = optText.includes(":") ? optText : `${letter}: ${optText}`;
-      radio.value = value;
+      input.value = value;
   
-      if (existingAnswer && existingAnswer === value) {
-        radio.checked = true;
+      if (existingValues.includes(value)) {
+        input.checked = true;
       }
   
       const span = document.createElement("span");
       span.textContent = optText;
   
-      wrapper.appendChild(radio);
+      wrapper.appendChild(input);
       wrapper.appendChild(span);
       mcOptionsContainer.appendChild(wrapper);
     });
@@ -703,7 +721,7 @@
     statusEl.textContent = "";
   }
 
-function saveAnswer() {
+  function saveAnswer() {
     if (currentDay === null) return;
   
     const name = nameInput.value.trim();
@@ -715,17 +733,24 @@ function saveAnswer() {
   
     const q = QUESTIONS[currentDay];
     const isMultipleChoice = q && typeof q === "object" && Array.isArray(q.options) && q.options.length > 0;
+    const isMultiSelect = isMultipleChoice && !!q.multi;
   
     let answer = "";
   
     if (isMultipleChoice) {
-      const selected = mcOptionsContainer.querySelector('input[name="mcOption"]:checked');
-      if (!selected) {
-        statusEl.textContent = "Bitte wähle eine Option aus.";
+      const selected = mcOptionsContainer.querySelectorAll('input[name="mcOption"]:checked');
+  
+      if (!selected.length) {
+        statusEl.textContent = isMultiSelect
+          ? "Bitte wähle mindestens eine Option aus."
+          : "Bitte wähle eine Option aus.";
         statusEl.classList.add("error");
         return;
       }
-      answer = selected.value; // z.B. "B: Kinderpunsch"
+  
+      const values = Array.from(selected).map(input => input.value);
+      // als "A: ..., C: ..." speichern
+      answer = values.join(", ");
     } else {
       answer = answerInput.value.trim();
       if (!answer) {
@@ -755,11 +780,11 @@ function saveAnswer() {
           const text = await res.text();
           console.log("Google response status:", res.status);
           console.log("Google response body:", text);
-      
+  
           if (!res.ok) {
             throw new Error("Status " + res.status + " – " + text);
           }
-      
+  
           statusEl.textContent = "Antwort gespeichert (Google Sheet). Danke!";
         })
         .catch((err) => {
